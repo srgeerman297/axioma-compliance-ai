@@ -1,0 +1,69 @@
+# File: .github/workflows/deploy.yml
+
+name: Deploy to GitHub Pages
+
+on:
+  # This workflow runs automatically every time you push to the 'main' branch
+  push:
+    branches: ["main"]
+
+  # This allows you to run the workflow manually from the "Actions" tab on GitHub
+  workflow_dispatch:
+
+# Grant the necessary permissions for the workflow to deploy to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # Define a single job called "build-and-deploy"
+  build-and-deploy:
+    # Use the latest version of Ubuntu as the operating system for the job
+    runs-on: ubuntu-latest
+
+    # Configure the job to deploy to the "github-pages" environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Step 1: Check out your repository's code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js so it can run npm commands
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Using Node.js version 18
+          cache: 'npm'       # Cache npm packages to speed up future runs
+
+      # Step 3: Install all project dependencies from package.json
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Build the React application for production
+      - name: Build project
+        # This runs the "build" script from your package.json
+        run: npm run build
+        env:
+          # This is the crucial part: it securely injects your API key
+          # from GitHub Secrets into the build process.
+          VITE_API_KEY: ${{ secrets.API_KEY }}
+
+      # Step 5: Configure GitHub Pages to accept the build artifact
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      # Step 6: Upload the built 'dist' folder as an artifact
+      - name: Upload build artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # The path should match the 'outDir' in your vite.config.ts
+          path: './dist'
+
+      # Step 7: Deploy the uploaded artifact to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
